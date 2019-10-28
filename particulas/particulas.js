@@ -20,7 +20,7 @@ function particulas() {
       antes = performance.now(),//Tempo em milisegundos em que o frame anterior foi desenhado.
       intervaloEntreFrames = 1000 / frameRate,//Intervalo em milisegundos que cada frame terá.
       diferencaTempo, //Comparação entre o tempo atual e o tempo em que o frame anterior foi desenhando.
-      iniciarAnimacao = requestAnimationFrame(animar, particulas);
+      iniciarAnimacao = requestAnimationFrame(animar, particulas);//USar para parar e iniciar a animação.
 
    mudarTamanhoCanvas(larguraJanela, alturaJanela);//Deixa o canvas com a mesma resolução da janela.
    guardaParticulas();
@@ -34,25 +34,6 @@ function particulas() {
       numParticulas = Math.round(relacaonumparticulas / 25555);//Atualiza o número de particulas caso a janela mude de tamanho.
       guardaParticulas();
    });
-
-   document.addEventListener("scroll", throttle(function () {
-      scrollposicao = document.body.scrollTop || document.documentElement.scrollTop;
-      if (scrollposicao >= alturaJanela - 13) {
-         //Encerra a animação quando o valor do scrollTop da página for superior ao tamanho da janela (pois as particulas não serão mais visíveis) evitar processamento inútil.
-         espacoparticulas.style.webkitTransition = "none";
-         espacoparticulas.style.transition = "none";
-         espacoparticulas.style.opacity = "0";
-         cancelAnimationFrame(iniciarAnimacao);
-         iniciarAnimacao = null;
-      }
-      if (scrollposicao < 3 && iniciarAnimacao == null) {
-         //Retoma a animação quando a página voltar ao topo.
-         espacoparticulas.style.webkitTransition = "opacity 3s linear";
-         espacoparticulas.style.transition = "opacity 3s linear";
-         espacoparticulas.style.opacity = "1";
-         iniciarAnimacao = requestAnimationFrame(animar, particulas);
-      }
-   }), 115, true);
 
    function guardaParticulas() {
       for (let i = 0; i < numParticulas; i++) {
