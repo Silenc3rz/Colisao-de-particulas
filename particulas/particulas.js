@@ -1,5 +1,6 @@
 function particles() {
-   const ctx = document.getElementById("particulas").getContext("2d"), lineDistance = 200;
+   const ctx = document.getElementById("particulas").getContext("2d"), 
+   lineDistance = 250;
    let arrayParticles, startAnimation;
    window.addEventListener("resize", start);
 
@@ -28,7 +29,7 @@ function particles() {
 
    function drawLine(point1, point2, opacity, backLine) {
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.8 * opacity) + ')';
+      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.78 * opacity) + ')';
       ctx.moveTo(point1.x, point1.y);
       ctx.lineTo(point2.x, point2.y);
       ctx.stroke();
@@ -116,7 +117,7 @@ function createParticles(numParticles) {
    const particles = [];
    for (let i = 0; i < numParticles; i++) { particles.push(getParticle()); }
    function getParticle() {
-      const radius = randomNumber(1.4, 9), circle = drawCircle(),
+      const radius = randomNumber(1.3, 9.5), circle = drawCircle(),
          posX = randomNumber(radius, window.innerWidth - radius),
          posY = randomNumber(radius, window.innerHeight - radius),
          velX = randomNumber(-0.55, 0.55), velY = randomNumber(-0.55, 0.55);
