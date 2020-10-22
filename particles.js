@@ -1,8 +1,11 @@
-function particles() {
-   const ctx = document.getElementById("particulas").getContext("2d"), 
-   lineDistance = 250;
-   let arrayParticles, startAnimation;
-   window.addEventListener("resize", start);
+export default function particlesAnimation(canvasElement) {
+   const ctx = canvasElement.getContext("2d"),
+      lineDistance = 225;
+   let arrayParticles, startAnimation, stopBlurParticles;
+   window.addEventListener("resize", restart);
+
+   const getDistanceCoordinates = (p1, p2) => (((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) ** 0.5);
+   const randomNumber = (min, max) => (Math.random() * (max - min) + min);
 
    function moveParticles() {
       for (let i = 0, n = arrayParticles.length; i < n; i++) {
@@ -27,7 +30,7 @@ function particles() {
 
    }
 
-   function drawLine(point1, point2, opacity, backLine) {
+   function drawLine(point1, point2, opacity) {
       ctx.beginPath();
       ctx.strokeStyle = "rgba(255, 255, 255, " + (0.78 * opacity) + ')';
       ctx.moveTo(point1.x, point1.y);
@@ -35,6 +38,11 @@ function particles() {
       ctx.stroke();
    }
 
+   function rotate(desX, desY, angle) {
+      return {
+         x: desX * Math.cos(angle) - desY * Math.sin(angle), y: desX * Math.sin(angle) + desY * Math.cos(angle)
+      };
+   }
    function collision(particle1, particle2) {
       const deltaVelocityX = particle1.vel.x - particle2.vel.x, deltaVelocityY = particle1.vel.y - particle2.vel.y,
          dx = particle2.pos.x - particle1.pos.x, dy = particle2.pos.y - particle1.pos.y;
@@ -48,35 +56,32 @@ function particles() {
          particle1.vel = { x: vFinal1.x - (vFinal1.x / 50), y: vFinal1.y - (vFinal1.y / 50) };
          particle2.vel = { x: vFinal2.x - (vFinal2.x / 50), y: vFinal2.y - (vFinal2.y / 50) };
       }
-      function rotate(desX, desY, angle) {
+   }
+
+   function createParticles(numParticles) {
+      const particles = [];
+      function getParticle() {
+         function drawCircle() {
+            const ctxCircle = document.createElement("canvas").getContext("2d"),
+               size = Math.ceil((radius + 1) * 2);
+            ctxCircle.canvas.width = ctxCircle.canvas.height = size;
+            ctxCircle.arc(size / 2, size / 2, radius, 0, 2 * Math.PI, true);
+            ctxCircle.fillStyle = "rgb(255, 255, 255)";
+            ctxCircle.fill();
+            return ctxCircle;
+         }
+         const radius = randomNumber(1.3, 9.5), circle = drawCircle(),
+            posX = randomNumber(radius, window.innerWidth - radius),
+            posY = randomNumber(radius, window.innerHeight - radius),
+            velX = randomNumber(-0.55, 0.55), velY = randomNumber(-0.55, 0.55);
+
          return {
-            x: desX * Math.cos(angle) - desY * Math.sin(angle), y: desX * Math.sin(angle) + desY * Math.cos(angle)
-         };
+            id: particles.length, circle, radius, mid: circle.canvas.width / 2, pos: { x: posX, y: posY },
+            vel: { x: velX, y: velY }
+         }
       }
-   }
-
-   function getDistanceCoordinates(point1, point2) {
-      return ((point2.x - point1.x) ** 2 + (point2.y - point1.y) ** 2) ** 0.5;
-   }
-
-   function start() {
-      cancelAnimationFrame(startAnimation);
-      setResolutionCtx(window.innerWidth, window.innerHeight);
-      ctx.lineWidth = 0.95;
-      arrayParticles = createParticles(Math.round(window.innerWidth * window.innerHeight / 26500));
-      startAnimation = requestAnimationFrame(animation, ctx.canvas);;
-   }
-
-   let now, before = 0;
-   function animation() {
-      now = performance.now();
-      const deltaTime = now - before;
-      if (deltaTime >= 55) {
-         before = now;
-         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-         moveParticles();
-      }
-      setTimeout(() => startAnimation = requestAnimationFrame(animation, ctx.canvas), 16);
+      for (let i = 0; i < numParticles; i++) { particles.push(getParticle()); }
+      return particles;
    }
 
    function setResolutionCtx(width, height) {
@@ -84,9 +89,43 @@ function particles() {
       ctx.canvas.height = height;
    }
 
+   function stop() {
+      cancelAnimationFrame(startAnimation);
+      stopBlurParticles = true;
+   }
+
+   function start() {
+      stop();
+      setResolutionCtx(window.innerWidth, window.innerHeight);
+      ctx.lineWidth = 0.95;
+      if (!arrayParticles) {
+         arrayParticles = createParticles(Math.round(window.innerWidth * window.innerHeight / 26500));
+      }
+      startAnimation = requestAnimationFrame(animation, ctx.canvas);
+      stopBlurParticles = false;
+      blurParticles();
+   }
+
+   function restart() {
+      arrayParticles = null;
+      start();
+   }
+
+   let now, before = 0;
+   function animation() {
+      now = performance.now();
+      const deltaTime = now - before;
+      if (deltaTime >= 66) {
+         before = now;
+         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+         moveParticles();
+      }
+      startAnimation = requestAnimationFrame(animation, ctx.canvas);
+   }
+
    function blurParticles() {
-      let tempoTransicao = randomNumber(1, 10);
-      let tempoEsperar = randomNumber(0.5, 4);
+      if (stopBlurParticles) { return; }
+      let tempoTransicao = randomNumber(1, 10), tempoEsperar = randomNumber(0.5, 4);
       let desfoque = randomNumber(0.8, 4);
       ctx.canvas.style.transition = "filter " + tempoTransicao + "s linear";
       setTimeout(() => {
@@ -108,35 +147,5 @@ function particles() {
          }, 1);
       }
    }
-
-   start();
-   blurParticles();
+   return { start, stop }
 }
-
-function createParticles(numParticles) {
-   const particles = [];
-   for (let i = 0; i < numParticles; i++) { particles.push(getParticle()); }
-   function getParticle() {
-      const radius = randomNumber(1.3, 9.5), circle = drawCircle(),
-         posX = randomNumber(radius, window.innerWidth - radius),
-         posY = randomNumber(radius, window.innerHeight - radius),
-         velX = randomNumber(-0.55, 0.55), velY = randomNumber(-0.55, 0.55);
-
-      function drawCircle() {
-         const ctxCircle = document.createElement("canvas").getContext("2d"),
-            size = Math.ceil((radius + 1) * 2);
-         ctxCircle.canvas.width = ctxCircle.canvas.height = size;
-         ctxCircle.arc(size / 2, size / 2, radius, 0, 2 * Math.PI, true);
-         ctxCircle.fillStyle = "rgb(255, 255, 255)";
-         ctxCircle.fill();
-         return ctxCircle;
-      }
-      return {
-         id: particles.length, circle, radius, mid: circle.canvas.width / 2, pos: { x: posX, y: posY },
-         vel: { x: velX, y: velY }
-      }
-   }
-   return particles;
-}
-
-function randomNumber(min, max) { return Math.random() * (max - min) + min; }
