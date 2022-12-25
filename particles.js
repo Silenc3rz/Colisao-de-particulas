@@ -1,151 +1,138 @@
-export default function particlesAnimation(canvasElement) {
-   const ctx = canvasElement.getContext("2d"),
-      lineDistance = 225;
-   let arrayParticles, startAnimation, stopBlurParticles;
-   window.addEventListener("resize", restart);
+const randomNumber = (min, max) => (Math.random() * (max - min) + min);
 
-   const getDistanceCoordinates = (p1, p2) => (((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) ** 0.5);
-   const randomNumber = (min, max) => (Math.random() * (max - min) + min);
+export default function particlesAnimation(canvas) {
+  const ctx = canvas.getContext("2d");
+  const state = { maxLineSize: 250, requestAnimationId: 0, numParticles: 0, spaceSize: { w: 0, h: 0 }, particles: [], wasStarted: false }
 
-   function moveParticles() {
-      for (let i = 0, n = arrayParticles.length; i < n; i++) {
-         const particle = arrayParticles[i];
-         if (particle.pos.x + particle.radius >= window.innerWidth || particle.pos.x - particle.radius <= 0) {
-            particle.vel.x = -particle.vel.x;
-         } else if (particle.pos.y + particle.radius >= window.innerHeight || particle.pos.y - particle.radius <= 0) {
-            particle.vel.y = -particle.vel.y;
-         }
-         for (let e = 0; e < n; e++) {
-            if (e === i) { continue; }
-            const particle2 = arrayParticles[e], distance = getDistanceCoordinates(particle.pos, particle2.pos);
-            if (distance <= lineDistance) {
-               drawLine(particle.pos, particle2.pos, ((lineDistance - distance) / lineDistance));
-               if (distance <= particle.radius + particle2.radius) { collision(particle, particle2); }
-            }
-         }
-         particle.pos.y += particle.vel.y;
-         particle.pos.x += particle.vel.x;
-         ctx.drawImage(particle.circle.canvas, particle.pos.x - particle.mid, particle.pos.y - particle.mid);
-      }
-
-   }
-
-   function drawLine(point1, point2, opacity) {
+  const moveParticles = (() => {
+    const drawParticle = particle => {
+      ctx.lineWidth = particle.size;
+      ctx.strokeStyle = "white";
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(255, 255, 255, " + (0.78 * opacity) + ')';
-      ctx.moveTo(point1.x, point1.y);
-      ctx.lineTo(point2.x, point2.y);
+      ctx.lineTo(particle.pos.x, particle.pos.y);
       ctx.stroke();
-   }
+    }
+    const drawLine = (pos1, pos2, distance) => {
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = "rgba(255, 255, 255," + (state.maxLineSize - distance) / state.maxLineSize + ")";
+      ctx.beginPath();
+      ctx.moveTo(pos1.x, pos1.y);
+      ctx.lineTo(pos2.x, pos2.y);
+      ctx.stroke();
+    }
+    const collision = (particle1, particle2) => {
+      const diffX = particle1.pos.x - particle2.pos.x, diffY = particle1.pos.y - particle2.pos.y;
+      const dist = (diffX ** 2 + diffY ** 2) ** 0.5;
+      const normalX = diffX / dist, normalY = diffY / dist;
+      const tangentX = -normalY, tangentY = normalX;
+      const sumRadius = particle1.radius + particle2.radius;
+      const p1n = particle1.speed.x * normalX + particle1.speed.y * normalY;
+      const p1t = particle1.speed.x * tangentX + particle1.speed.y * tangentY;
+      const p2n = particle2.speed.x * normalX + particle2.speed.y * normalY;
+      const p2t = particle2.speed.x * tangentX + particle2.speed.y * tangentY;
+      const p1nFinal = (p1n * (particle1.radius - particle2.radius) + 2 * particle2.radius * p2n) / (particle1.radius + particle2.radius);
+      const p2nFinal = (p2n * (particle2.radius - particle1.radius) + 2 * particle1.radius * p1n) / (particle1.radius + particle2.radius);
+      const p1nAfterX = normalX * p1nFinal, p1nAfterY = normalY * p1nFinal;
+      const p1tAfterX = tangentX * p1t, p1tAfterY = tangentY * p1t;
+      const p2nAfterX = normalX * p2nFinal, p2nAfterY = normalY * p2nFinal;
+      const p2tAfterX = tangentX * p2t, p2tAfterY = tangentY * p2t;
+      const correctionX = normalX * sumRadius, correctionY = normalY * sumRadius;
+      particle1.pos.x = particle2.pos.x + correctionX;
+      particle1.pos.y = particle2.pos.y + correctionY;
+      particle1.speed.x = p1nAfterX + p1tAfterX;
+      particle1.speed.y = p1nAfterY + p1tAfterY;
+      particle2.speed.x = p2nAfterX + p2tAfterX;
+      particle2.speed.y = p2nAfterY + p2tAfterY;
+    }
+    return () => {
+      let particle = null;
+      for (let i = 0; i < state.numParticles; i++) {
+        particle = state.particles[i];
+        if (particle.pos.x + particle.radius >= state.spaceSize.w) {
+          particle.pos.x = state.spaceSize.w - particle.radius;
+          particle.speed.x = -particle.speed.x;
+        } else if (particle.pos.x - particle.radius <= 0) {
+          particle.pos.x = particle.radius;
+          particle.speed.x = -particle.speed.x;
+        } else if (particle.pos.y + particle.radius >= state.spaceSize.h) {
+          particle.pos.y = state.spaceSize.h - particle.radius;
+          particle.speed.y = -particle.speed.y;
+        }
+        else if (particle.pos.y - particle.radius <= 0) {
+          particle.pos.y = particle.radius;
+          particle.speed.y = -particle.speed.y;
+        }
+        particle.pos.x += particle.speed.x;
+        particle.pos.y += particle.speed.y;
+        drawParticle(particle);
 
-   function rotate(desX, desY, angle) {
-      return {
-         x: desX * Math.cos(angle) - desY * Math.sin(angle), y: desX * Math.sin(angle) + desY * Math.cos(angle)
-      };
-   }
-   function collision(particle1, particle2) {
-      const deltaVelocityX = particle1.vel.x - particle2.vel.x, deltaVelocityY = particle1.vel.y - particle2.vel.y,
-         dx = particle2.pos.x - particle1.pos.x, dy = particle2.pos.y - particle1.pos.y;
-      if (deltaVelocityX * dx + deltaVelocityY * dy >= 0) {
-         const angle = -Math.atan2(dy, dx), m1 = particle1.radius, m2 = particle2.radius,
-            u1 = rotate(particle1.vel.x, particle1.vel.y, angle),
-            u2 = rotate(particle2.vel.x, particle2.vel.y, angle),
-            v1 = { x: u1.x * (m1 - m2) / (m1 + m2) + u2.x * 2 * m2 / (m1 + m2), y: u1.y },
-            v2 = { x: u2.x * (m1 - m2) / (m1 + m2) + u1.x * 2 * m2 / (m1 + m2), y: u2.y },
-            vFinal1 = rotate(v1.x, v1.y, -angle), vFinal2 = rotate(v2.x, v2.y, -angle);
-         particle1.vel = { x: vFinal1.x - (vFinal1.x / 50), y: vFinal1.y - (vFinal1.y / 50) };
-         particle2.vel = { x: vFinal2.x - (vFinal2.x / 50), y: vFinal2.y - (vFinal2.y / 50) };
+        for (let e = 0; e < state.numParticles; e++) {
+          if (e === i) { continue; }
+          const particle2 = state.particles[e];
+          const distance = ((particle2.pos.x - particle.pos.x) ** 2 + (particle2.pos.y - particle.pos.y) ** 2) ** 0.5;
+          if (distance <= state.maxLineSize) {
+            if (!particle.linkeds.has(e)) {
+              particle2.linkeds.add(i);
+              drawLine(particle.pos, particle2.pos, distance);
+            }
+            if (distance <= (particle2.radius + particle.radius)) { collision(particle, particle2); }
+          }
+          else { particle2.linkeds.delete(i); }
+        }
+
       }
-   }
+    }
+  })();
 
-   function createParticles(numParticles) {
-      const particles = [];
-      function getParticle() {
-         function drawCircle() {
-            const ctxCircle = document.createElement("canvas").getContext("2d"),
-               size = Math.ceil((radius + 1) * 2);
-            ctxCircle.canvas.width = ctxCircle.canvas.height = size;
-            ctxCircle.arc(size / 2, size / 2, radius, 0, 2 * Math.PI, true);
-            ctxCircle.fillStyle = "rgb(255, 255, 255)";
-            ctxCircle.fill();
-            return ctxCircle;
-         }
-         const radius = randomNumber(1.3, 9.5), circle = drawCircle(),
-            posX = randomNumber(radius, window.innerWidth - radius),
-            posY = randomNumber(radius, window.innerHeight - radius),
-            velX = randomNumber(-0.55, 0.55), velY = randomNumber(-0.55, 0.55);
+  const createParticles = () => {
+    state.particles = [];
+    ctx.canvas.width = state.spaceSize.w = window.innerWidth;
+    ctx.canvas.height = state.spaceSize.h = window.innerHeight;
+    state.numParticles = ~~(state.spaceSize.w * state.spaceSize.h / 26000);
+    ctx.lineJoin = ctx.lineCap = "round";
+    for (let i = 0; i < state.numParticles; i++) {
+      const radius = (~~(randomNumber(1.3, 12) * 100)) / 100;
+      state.particles.push({
+        radius, size: (radius * 2), pos: {
+          x: randomNumber(radius, state.spaceSize.w - radius), y: randomNumber(radius, state.spaceSize.h - radius)
+        }, speed: { x: randomNumber(-0.7, 0.7), y: randomNumber(-0.7, 0.7), }, linkeds: new Set()
+      });
+    }
+  }
 
-         return {
-            id: particles.length, circle, radius, mid: circle.canvas.width / 2, pos: { x: posX, y: posY },
-            vel: { x: velX, y: velY }
-         }
-      }
-      for (let i = 0; i < numParticles; i++) { particles.push(getParticle()); }
-      return particles;
-   }
-
-   function setResolutionCtx(width, height) {
-      ctx.canvas.width = width;
-      ctx.canvas.height = height;
-   }
-
-   function stop() {
-      cancelAnimationFrame(startAnimation);
-      stopBlurParticles = true;
-   }
-
-   function start() {
-      stop();
-      setResolutionCtx(window.innerWidth, window.innerHeight);
-      ctx.lineWidth = 0.95;
-      if (!arrayParticles) {
-         arrayParticles = createParticles(Math.round(window.innerWidth * window.innerHeight / 26500));
-      }
-      startAnimation = requestAnimationFrame(animation, ctx.canvas);
-      stopBlurParticles = false;
-      blurParticles();
-   }
-
-   function restart() {
-      arrayParticles = null;
-      start();
-   }
-
-   let now, before = 0;
-   function animation() {
+  const animation = (() => {
+    let now = 0, before = 0, frameTime = 1000 / 18;
+    return () => {
       now = performance.now();
       const deltaTime = now - before;
-      if (deltaTime >= 66) {
-         before = now;
-         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-         moveParticles();
+      if (deltaTime >= frameTime) {
+        before = now - (deltaTime % frameTime);
+        ctx.clearRect(0, 0, state.spaceSize.w, state.spaceSize.h);
+        moveParticles();
       }
-      startAnimation = requestAnimationFrame(animation, ctx.canvas);
-   }
+      state.requestAnimationId = requestAnimationFrame(animation);
+    }
+  })();
 
-   function blurParticles() {
-      if (stopBlurParticles) { return; }
-      let tempoTransicao = randomNumber(1, 10), tempoEsperar = randomNumber(0.5, 4);
-      let desfoque = randomNumber(0.8, 4);
-      ctx.canvas.style.transition = "filter " + tempoTransicao + "s linear";
-      setTimeout(() => {
-         ctx.canvas.style.filter = "blur(" + desfoque + "px)";
-         setTimeout(() => {
-            focusParticles();
-         }, (tempoTransicao * 1000) + (tempoEsperar * 1000));
-      }, 1);
+  const start = () => {
+    if (state.wasStarted) { return; }
+    window.addEventListener("resize", restart);
+    if (!state.particles.length) { createParticles(); }
+    animation();
+    state.wasStarted = true;
+  }
 
-      function focusParticles() {
-         tempoTransicao = randomNumber(1, 10);
-         tempoEsperar = randomNumber(5, 15);
-         ctx.canvas.style.transition = "filter " + tempoTransicao + "s linear";
-         setTimeout(() => {
-            ctx.canvas.style.filter = "blur(0px)";
-            setTimeout(() => {
-               blurParticles();
-            }, (tempoTransicao * 1000) + (tempoEsperar * 1000));
-         }, 1);
-      }
-   }
-   return { start, stop }
+  const stop = () => {
+    if (!state.wasStarted) { return; }
+    window.removeEventListener("resize", restart);
+    cancelAnimationFrame(state.requestAnimationId);
+    state.wasStarted = false;
+  }
+
+  function restart() {
+    stop();
+    state.particles = [];
+    start();
+  }
+  return { start, stop }
 }
