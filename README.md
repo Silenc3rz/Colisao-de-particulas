@@ -11,7 +11,7 @@ Você também pode usar o método `stop`, para parar a animação sempre que nec
 
 ```html
 <script type="module">
-  import createParticlesAnimation from "./particles.js";
+  import createParticlesAnimation from "https://cdn.jsdelivr.net/gh/Gabrielmso/Colisao-de-particulas/particles.js";
 
   const particlesAnimation = createParticlesAnimation(document.querySelector("#canvas"));
 
