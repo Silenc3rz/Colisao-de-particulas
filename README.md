@@ -10,13 +10,15 @@ Basta importar e instanciar o módulo passando um `HTMLCanvasElement` como argum
 Você também pode usar o método `stop`, para parar a animação sempre que necessário;
 
 ```html
-<script type="module">
-  import createParticlesAnimation from "https://cdn.jsdelivr.net/gh/Gabrielmso/Colisao-de-particulas/particles.js";
+<script defer type="module">
+  import createColissionParticlesAnimation from "https://cdn.jsdelivr.net/gh/Gabrielmso/Colisao-de-particulas/particles.js";
 
-  const particlesAnimation = createParticlesAnimation(document.querySelector("#canvas"));
+  const particlesAnimation = createColissionParticlesAnimation(document.querySelector("#canvas"), { r: 255, g:255, b: 255 });
 
-  window.onload = particlesAnimation.start;
+  particlesAnimation.start();
   
   particlesAnimation.stop();
+
+  particlesAnimation.changeColor({ r: 0, g: 0, b: 0 });
 </script>
 ```
