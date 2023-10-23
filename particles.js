@@ -1,48 +1,46 @@
 const randomNumber = (min, max) => (Math.random() * (max - min) + min);
 
-export default function particlesAnimation(canvas) {
+/**
+ * @param {HTMLCanvasElement} canvas 
+ * @param {{r: number, g: number, b: number}} color
+ */
+export default function createCollisionParticlesAnimation(canvas, color) {
   const ctx = canvas.getContext("2d");
-  const state = { maxLineSize: 250, requestAnimationId: 0, numParticles: 0, spaceSize: { w: 0, h: 0 }, particles: [], wasStarted: false }
-
+  const state = {
+    maxLineSize: 250, requestAnimationId: 0, numParticles: 0, spaceSize: { w: 0, h: 0 }, particles: [], wasStarted: false,
+    strokeStyleParticle: "white", strokeStyleLine: "rgba(255, 255, 255,"
+  }
   const moveParticles = (() => {
     const drawParticle = particle => {
       ctx.lineWidth = particle.size;
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = state.strokeStyleParticle;
       ctx.beginPath();
       ctx.lineTo(particle.pos.x, particle.pos.y);
       ctx.stroke();
     }
     const drawLine = (pos1, pos2, distance) => {
       ctx.lineWidth = 1.2;
-      ctx.strokeStyle = "rgba(255, 255, 255," + (state.maxLineSize - distance) / state.maxLineSize + ")";
+      ctx.strokeStyle = state.strokeStyleLine + ((state.maxLineSize - distance) / state.maxLineSize) + ")";
       ctx.beginPath();
       ctx.moveTo(pos1.x, pos1.y);
       ctx.lineTo(pos2.x, pos2.y);
       ctx.stroke();
     }
-    const collision = (particle1, particle2) => {
-      const diffX = particle1.pos.x - particle2.pos.x, diffY = particle1.pos.y - particle2.pos.y;
-      const dist = (diffX ** 2 + diffY ** 2) ** 0.5;
-      const normalX = diffX / dist, normalY = diffY / dist;
-      const tangentX = -normalY, tangentY = normalX;
-      const sumRadius = particle1.radius + particle2.radius;
-      const p1n = particle1.speed.x * normalX + particle1.speed.y * normalY;
-      const p1t = particle1.speed.x * tangentX + particle1.speed.y * tangentY;
-      const p2n = particle2.speed.x * normalX + particle2.speed.y * normalY;
-      const p2t = particle2.speed.x * tangentX + particle2.speed.y * tangentY;
-      const p1nFinal = (p1n * (particle1.radius - particle2.radius) + 2 * particle2.radius * p2n) / (particle1.radius + particle2.radius);
-      const p2nFinal = (p2n * (particle2.radius - particle1.radius) + 2 * particle1.radius * p1n) / (particle1.radius + particle2.radius);
-      const p1nAfterX = normalX * p1nFinal, p1nAfterY = normalY * p1nFinal;
-      const p1tAfterX = tangentX * p1t, p1tAfterY = tangentY * p1t;
-      const p2nAfterX = normalX * p2nFinal, p2nAfterY = normalY * p2nFinal;
-      const p2tAfterX = tangentX * p2t, p2tAfterY = tangentY * p2t;
-      const correctionX = normalX * sumRadius, correctionY = normalY * sumRadius;
-      particle1.pos.x = particle2.pos.x + correctionX;
-      particle1.pos.y = particle2.pos.y + correctionY;
-      particle1.speed.x = p1nAfterX + p1tAfterX;
-      particle1.speed.y = p1nAfterY + p1tAfterY;
-      particle2.speed.x = p2nAfterX + p2tAfterX;
-      particle2.speed.y = p2nAfterY + p2tAfterY;
+    function collision(particle1, particle2) {
+      const collisionNormal = { x: particle2.pos.x - particle1.pos.x, y: particle2.pos.y - particle1.pos.y, };
+      const collisionNormalMagnitude = (collisionNormal.x ** 2 + collisionNormal.y ** 2) ** 0.5;
+      if (collisionNormalMagnitude === 0) { return; }
+      collisionNormal.x /= collisionNormalMagnitude;
+      collisionNormal.y /= collisionNormalMagnitude;
+      const relativeSpeed = { x: particle2.speed.x - particle1.speed.x, y: particle2.speed.y - particle1.speed.y, };
+      const speedAlongNormal = relativeSpeed.x * collisionNormal.x + relativeSpeed.y * collisionNormal.y;
+      if (speedAlongNormal > 0) { return; }
+      const impulseMagnitude = (-2 * speedAlongNormal) / ((1 / particle1.radius) + (1 / particle2.radius));
+      const impulse1 = impulseMagnitude / particle1.radius, impulse2 = impulseMagnitude / particle2.radius;
+      particle1.speed.x -= impulse1 * collisionNormal.x;
+      particle1.speed.y -= impulse1 * collisionNormal.y;
+      particle2.speed.x += impulse2 * collisionNormal.x;
+      particle2.speed.y += impulse2 * collisionNormal.y;
     }
     return () => {
       let particle = null;
@@ -62,6 +60,7 @@ export default function particlesAnimation(canvas) {
           particle.pos.y = particle.radius;
           particle.speed.y = -particle.speed.y;
         }
+
         particle.pos.x += particle.speed.x;
         particle.pos.y += particle.speed.y;
         drawParticle(particle);
@@ -79,15 +78,14 @@ export default function particlesAnimation(canvas) {
           }
           else { particle2.linkeds.delete(i); }
         }
-
       }
     }
   })();
-
   const createParticles = () => {
     state.particles = [];
-    ctx.canvas.width = state.spaceSize.w = window.innerWidth;
-    ctx.canvas.height = state.spaceSize.h = window.innerHeight;
+    const { width, height } = ctx.canvas.getBoundingClientRect();
+    ctx.canvas.width = state.spaceSize.w = width;
+    ctx.canvas.height = state.spaceSize.h = height;
     state.numParticles = ~~(state.spaceSize.w * state.spaceSize.h / 26000);
     ctx.lineJoin = ctx.lineCap = "round";
     for (let i = 0; i < state.numParticles; i++) {
@@ -99,7 +97,6 @@ export default function particlesAnimation(canvas) {
       });
     }
   }
-
   const animation = (() => {
     let now = 0, before = 0, frameTime = 1000 / 18;
     return () => {
@@ -113,26 +110,38 @@ export default function particlesAnimation(canvas) {
       state.requestAnimationId = requestAnimationFrame(animation);
     }
   })();
-
+  const onResize = () => {
+    if (!state.wasStarted) { return; }
+    const { width, height } = ctx.canvas.getBoundingClientRect();
+    if (state.spaceSize.h === height && state.spaceSize.w === width) { return; }
+    createParticles();
+  }
   const start = () => {
     if (state.wasStarted) { return; }
-    window.addEventListener("resize", restart);
+    const { width, height } = ctx.canvas.getBoundingClientRect();
+    state.particles = state.spaceSize.h !== height || state.spaceSize.w !== width ? [] : state.particles;
+    window.addEventListener("resize", onResize);
     if (!state.particles.length) { createParticles(); }
     animation();
     state.wasStarted = true;
   }
-
   const stop = () => {
     if (!state.wasStarted) { return; }
-    window.removeEventListener("resize", restart);
+    window.removeEventListener("resize", onResize);
     cancelAnimationFrame(state.requestAnimationId);
     state.wasStarted = false;
   }
-
-  function restart() {
-    stop();
-    state.particles = [];
-    start();
+  const setColor = color => {
+    state.strokeStyleParticle = color ? "rgb(" + color.r + ", " + color.g + ", " + color.b + ")" : "white";
+    state.strokeStyleLine = color ? "rgba(" + color.r + ", " + color.g + ", " + color.b + "," : "rgba(255, 255, 255,";
   }
-  return { start, stop }
+  /**
+   * @param {{r: number, g: number, b: number}} color
+   */
+  const changeColor = async color => {
+    if (!color) { return; }
+    setColor(color);
+  }
+  color && setColor(color);
+  return { start, stop, changeColor }
 }

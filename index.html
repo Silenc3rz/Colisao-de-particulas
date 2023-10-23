@@ -12,25 +12,29 @@
             padding: 0;
         }
 
-        body {
+        body,
+        html {
             background-color: black;
+            height: 100dvh;
+            width: 100dvw;
         }
 
         #particulas {
-            opacity: 0.19;
-            display: block;
+            opacity: 0.27;
             width: 100%;
             height: 100%;
+            vertical-align: top;
         }
     </style>
     <script type="module">
-        import particlesAnimation from "./particles.js";
-        window.onload = () => particlesAnimation(document.getElementById("particulas")).start();
+        import createCollisionParticlesAnimation from "./particles.js";
+        const particlesAnimation = createCollisionParticlesAnimation(document.getElementById("particulas"), { r: 255, g: 255, b: 255 })
+        window.onload = particlesAnimation.start;
     </script>
 </head>
 
 <body>
-    <canvas id="particulas" style="opacity: 0.27"></canvas>
+    <canvas id="particulas"></canvas>
 </body>
 
 </html>
